@@ -18,3 +18,9 @@ id = "GwKPocUL7XmBpPVDYKkbR"
 uri = "file://ticket-fix.zip"
 type = "unspecified"
 title = "ticket.js — download diretto"
+
+[[outputs]]
+id = "o6WwvpNwkGrL7dUsS7Gg1"
+uri = "file://ticket-mobile.zip"
+type = "unspecified"
+title = "ticket.js — versione mobile sicura"

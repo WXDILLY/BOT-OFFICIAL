@@ -1,210 +1,282 @@
-/**
- * Prato RP — Sistema Ticket
- * Usato come modulo: require('./ticket.js')(client)
- */
+// ticket.js - Prato RP Sistema Ticket
+// Uso: require('./ticket.js')(client)
 
-const {
-  EmbedBuilder,
-  ActionRowBuilder,
-  StringSelectMenuBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  PermissionFlagsBits,
-  ChannelType,
-  Events,
-} = require("discord.js");
+const discord = require('discord.js');
+const EmbedBuilder = discord.EmbedBuilder;
+const ActionRowBuilder = discord.ActionRowBuilder;
+const StringSelectMenuBuilder = discord.StringSelectMenuBuilder;
+const ButtonBuilder = discord.ButtonBuilder;
+const ButtonStyle = discord.ButtonStyle;
+const PermissionFlagsBits = discord.PermissionFlagsBits;
+const ChannelType = discord.ChannelType;
+const Events = discord.Events;
 
-const CONFIG = {
-  staffRoleId: "1530126746618302564",
-  ticketCategoryId: "1529986873785585706",
-  logCategoryId: "1529235211035086848",
+var CONFIG = {
+  staffRoleId: '1530126746618302564',
+  ticketCategoryId: '1529986873785585706',
+  logCategoryId: '1529235211035086848'
 };
 
-const TICKET_TYPES = [
-  { value: "segnala_persona", label: "Segnala una persona", emoji: "⚙️", description: "Utente con comportamento tossico, cheating o violazione delle regole." },
-  { value: "richiesta_unban", label: "Richiesta unban", emoji: "🔓", description: "Ritieni di essere stato bannato per errore? Spiega la tua situazione." },
-  { value: "segnala_bug", label: "Segnala Bug", emoji: "🐛", description: "Problema tecnico nel server o nel gioco? Descrivi cosa è successo." },
-  { value: "partnership", label: "Partnership", emoji: "🤝", description: "Rappresenti una community e vuoi collaborare con Prato RP?" },
-  { value: "ceo", label: "Ceo", emoji: "👑", description: "Questione importante da portare all'attenzione della direzione." },
-  { value: "altro", label: "Altro", emoji: "❓", description: "Il tuo problema non rientra nelle categorie? Apri comunque un ticket." },
+var TICKET_TYPES = [
+  { value: 'segnala_persona', label: 'Segnala una persona', emoji: null, emojiText: '[SEGNALA]', description: 'Utente con comportamento tossico, cheating o violazione delle regole.' },
+  { value: 'richiesta_unban', label: 'Richiesta unban', emoji: null, emojiText: '[UNBAN]', description: 'Ritieni di essere stato bannato per errore? Spiega la tua situazione.' },
+  { value: 'segnala_bug', label: 'Segnala Bug', emoji: null, emojiText: '[BUG]', description: 'Problema tecnico nel server o nel gioco? Descrivi cosa e successo.' },
+  { value: 'partnership', label: 'Partnership', emoji: null, emojiText: '[PARTNER]', description: 'Rappresenti una community e vuoi collaborare con Prato RP?' },
+  { value: 'ceo', label: 'Ceo', emoji: null, emojiText: '[CEO]', description: 'Questione importante da portare all attenzione della direzione.' },
+  { value: 'altro', label: 'Altro', emoji: null, emojiText: '[ALTRO]', description: 'Il tuo problema non rientra nelle categorie? Apri comunque un ticket.' }
 ];
 
-const openTickets = new Map();
+var openTickets = new Map();
 
 function getTicketType(value) {
-  return TICKET_TYPES.find((t) => t.value === value);
+  for (var i = 0; i < TICKET_TYPES.length; i++) {
+    if (TICKET_TYPES[i].value === value) return TICKET_TYPES[i];
+  }
+  return null;
 }
 
 async function sendTicketPanel(channel) {
-  const embed = new EmbedBuilder()
+  var desc = 'Seleziona la categoria piu adatta al tuo problema e apri un ticket.\n';
+  desc += 'Il nostro staff ti rispondera il prima possibile.\n\n';
+  for (var i = 0; i < TICKET_TYPES.length; i++) {
+    var t = TICKET_TYPES[i];
+    desc += t.emojiText + ' **| ' + t.label + '**\n' + t.description + '\n\n';
+  }
+
+  var embed = new EmbedBuilder()
     .setColor(0xf0a500)
-    .setTitle("🔧 PRATO RP | OFFICIAL SUPPORT")
-    .setDescription(
-      "Seleziona la categoria più adatta al tuo problema e apri un ticket.\nIl nostro staff ti risponderà il prima possibile.\n\n" +
-      TICKET_TYPES.map((t) => `${t.emoji} **| ${t.label}**\n${t.description}`).join("\n\n")
-    )
-    .setFooter({ text: "Prato RP • Un ticket per volta per utente" });
+    .setTitle('PRATO RP | OFFICIAL SUPPORT')
+    .setDescription(desc)
+    .setFooter({ text: 'Prato RP - Un ticket per volta per utente' });
 
-  const select = new StringSelectMenuBuilder()
-    .setCustomId("ticket_select")
-    .setPlaceholder("Scegli una categoria…")
-    .addOptions(TICKET_TYPES.map((t) => ({ label: t.label, value: t.value, emoji: t.emoji, description: t.description.slice(0, 100) })));
+  var options = TICKET_TYPES.map(function(t) {
+    return { label: t.label, value: t.value, description: t.description.slice(0, 100) };
+  });
 
-  await channel.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(select)] });
+  var select = new StringSelectMenuBuilder()
+    .setCustomId('ticket_select')
+    .setPlaceholder('Scegli una categoria...')
+    .addOptions(options);
+
+  var row = new ActionRowBuilder().addComponents(select);
+  await channel.send({ embeds: [embed], components: [row] });
 }
 
 async function createTicketChannel(guild, member, ticketType) {
-  const channelName = `ticket-${member.user.username.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20)}`;
+  var name = member.user.username.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
+  var channelName = 'ticket-' + name;
+
   return await guild.channels.create({
     name: channelName,
     type: ChannelType.GuildText,
     parent: CONFIG.ticketCategoryId,
-    topic: `Ticket di ${member.user.tag} | Tipo: ${ticketType.label}`,
+    topic: 'Ticket di ' + member.user.tag + ' | Tipo: ' + ticketType.label,
     permissionOverwrites: [
       { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-      { id: member.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.AttachFiles] },
-      { id: CONFIG.staffRoleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.ManageMessages] },
-    ],
+      {
+        id: member.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.AttachFiles
+        ]
+      },
+      {
+        id: CONFIG.staffRoleId,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.AttachFiles,
+          PermissionFlagsBits.ManageMessages
+        ]
+      }
+    ]
   });
 }
 
 async function sendTicketWelcome(channel, member, ticketType) {
-  const embed = new EmbedBuilder()
+  var desc = 'Benvenuto ' + member.toString() + ', il tuo ticket e stato aperto.\n\n';
+  desc += '**Categoria:** ' + ticketType.emojiText + ' ' + ticketType.label + '\n';
+  desc += '**Aperto da:** ' + member.user.tag + '\n\n';
+  desc += 'Descrivi il tuo problema nel dettaglio.\n';
+  desc += 'Lo staff ti rispondera il prima possibile.\n\n';
+  desc += 'Per chiudere il ticket premi il pulsante qui sotto.';
+
+  var embed = new EmbedBuilder()
     .setColor(0x5865f2)
-    .setTitle(`${ticketType.emoji} Ticket — ${ticketType.label}`)
-    .setDescription(
-      `Benvenuto ${member}, il tuo ticket è stato aperto.\n\n` +
-      `**Categoria:** ${ticketType.emoji} ${ticketType.label}\n**Aperto da:** ${member.user.tag}\n\n` +
-      "Descrivi il tuo problema nel dettaglio. Lo staff ti risponderà il prima possibile.\n\nPer chiudere il ticket premi il pulsante qui sotto."
-    )
+    .setTitle('Ticket - ' + ticketType.label)
+    .setDescription(desc)
     .setTimestamp();
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("ticket_close").setLabel("🔒 Chiudi ticket").setStyle(ButtonStyle.Danger)
-  );
+  var closeBtn = new ButtonBuilder()
+    .setCustomId('ticket_close')
+    .setLabel('Chiudi ticket')
+    .setStyle(ButtonStyle.Danger);
 
-  await channel.send({ content: `<@&${CONFIG.staffRoleId}> — nuovo ticket da ${member}`, embeds: [embed], components: [row] });
+  var row = new ActionRowBuilder().addComponents(closeBtn);
+
+  await channel.send({
+    content: '<@&' + CONFIG.staffRoleId + '> - nuovo ticket da ' + member.toString(),
+    embeds: [embed],
+    components: [row]
+  });
 }
 
 async function getOrCreateLogChannel(guild) {
-  const existing = guild.channels.cache.find(
-    (c) => c.parentId === CONFIG.logCategoryId && c.type === ChannelType.GuildText && c.name === "ticket-logs"
-  );
+  var existing = guild.channels.cache.find(function(c) {
+    return c.parentId === CONFIG.logCategoryId &&
+      c.type === ChannelType.GuildText &&
+      c.name === 'ticket-logs';
+  });
   if (existing) return existing;
+
   return await guild.channels.create({
-    name: "ticket-logs",
+    name: 'ticket-logs',
     type: ChannelType.GuildText,
     parent: CONFIG.logCategoryId,
     permissionOverwrites: [
       { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-      { id: CONFIG.staffRoleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory] },
-    ],
+      {
+        id: CONFIG.staffRoleId,
+        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory]
+      }
+    ]
   });
 }
 
 async function sendCloseLog(guild, ticketChannel, owner, closedBy, ticketType) {
   try {
-    const logChannel = await getOrCreateLogChannel(guild);
-    const embed = new EmbedBuilder()
+    var logChannel = await getOrCreateLogChannel(guild);
+    var ownerText = owner ? owner.tag + ' (' + owner.id + ')' : 'Sconosciuto';
+    var typeText = ticketType ? ticketType.emojiText + ' ' + ticketType.label : 'N/D';
+
+    var embed = new EmbedBuilder()
       .setColor(0xed4245)
-      .setTitle("🔒 Ticket chiuso")
+      .setTitle('Ticket chiuso')
       .addFields(
-        { name: "Utente", value: owner ? `${owner.tag} (${owner.id})` : "Sconosciuto", inline: true },
-        { name: "Chiuso da", value: `${closedBy.tag} (${closedBy.id})`, inline: true },
-        { name: "Categoria", value: ticketType ? `${ticketType.emoji} ${ticketType.label}` : "N/D", inline: true },
-        { name: "Canale", value: ticketChannel.name, inline: true }
+        { name: 'Utente', value: ownerText, inline: true },
+        { name: 'Chiuso da', value: closedBy.tag + ' (' + closedBy.id + ')', inline: true },
+        { name: 'Categoria', value: typeText, inline: true },
+        { name: 'Canale', value: ticketChannel.name, inline: true }
       )
       .setTimestamp()
-      .setFooter({ text: "Nessun transcript — Privacy protetta" });
+      .setFooter({ text: 'Nessun transcript - Privacy protetta' });
+
     await logChannel.send({ embeds: [embed] });
   } catch (err) {
-    console.error("[LOG] Errore:", err.message);
+    console.error('[LOG] Errore:', err.message);
   }
 }
 
 async function sendCloseDM(user, ticketType) {
   try {
-    const embed = new EmbedBuilder()
+    var typeText = ticketType ? ticketType.emojiText + ' ' + ticketType.label : '';
+    var desc = 'Il tuo ticket **' + typeText + '** su **Prato RP** e stato chiuso dallo staff.\n\n';
+    desc += 'Se hai bisogno di ulteriore assistenza, apri un nuovo ticket nel server.\n\n';
+    desc += 'Per motivi di privacy non viene inviato alcun transcript.';
+
+    var embed = new EmbedBuilder()
       .setColor(0xed4245)
-      .setTitle("🔒 Il tuo ticket è stato chiuso")
-      .setDescription(
-        `Il tuo ticket **${ticketType ? ticketType.emoji + " " + ticketType.label : ""}** su **Prato RP** è stato chiuso dallo staff.\n\n` +
-        "Se hai bisogno di ulteriore assistenza, apri un nuovo ticket nel server.\n\n_Per motivi di privacy non viene inviato alcun transcript._"
-      )
+      .setTitle('Il tuo ticket e stato chiuso')
+      .setDescription(desc)
       .setTimestamp();
+
     await user.send({ embeds: [embed] });
-  } catch { /* DM chiusi */ }
+  } catch (e) {
+    // DM chiusi, ignoriamo
+  }
 }
 
-// ─── ESPORTATO: riceve il client da main.js ───────────────────────────────────
-module.exports = function (client) {
+module.exports = function(client) {
 
   // Comando !ticket-panel
-  client.on(Events.MessageCreate, async (message) => {
-    if (message.author.bot || message.content !== "!ticket-panel") return;
-    const member = message.member;
+  client.on(Events.MessageCreate, async function(message) {
+    if (message.author.bot) return;
+    if (message.content !== '!ticket-panel') return;
+    var member = message.member;
     if (!member) return;
-    if (!member.permissions.has(PermissionFlagsBits.Administrator) && !member.roles.cache.has(CONFIG.staffRoleId)) {
-      return message.reply({ content: "❌ Non hai i permessi.", allowedMentions: { repliedUser: false } });
+    var isAdmin = member.permissions.has(PermissionFlagsBits.Administrator);
+    var isStaff = member.roles.cache.has(CONFIG.staffRoleId);
+    if (!isAdmin && !isStaff) {
+      return message.reply({ content: 'Non hai i permessi.', allowedMentions: { repliedUser: false } });
     }
     await sendTicketPanel(message.channel);
-    await message.delete().catch(() => {});
+    await message.delete().catch(function() {});
   });
 
-  // Interazioni (select menu + bottone chiudi)
-  client.on(Events.InteractionCreate, async (interaction) => {
+  // Interazioni
+  client.on(Events.InteractionCreate, async function(interaction) {
 
-    // ── Select menu ──
-    if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
-      const member = interaction.member;
-      const guild = interaction.guild;
-      const ticketType = getTicketType(interaction.values[0]);
+    // Select menu - apertura ticket
+    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
+      var member = interaction.member;
+      var guild = interaction.guild;
+      var ticketType = getTicketType(interaction.values[0]);
       await interaction.deferReply({ ephemeral: true });
 
       if (openTickets.has(member.id)) {
-        const existing = guild.channels.cache.get(openTickets.get(member.id));
-        if (existing) return interaction.editReply({ content: `❌ Hai già un ticket aperto: ${existing}. Chiudilo prima.` });
+        var existingId = openTickets.get(member.id);
+        var existingChannel = guild.channels.cache.get(existingId);
+        if (existingChannel) {
+          return interaction.editReply({ content: 'Hai gia un ticket aperto: ' + existingChannel.toString() + '. Chiudilo prima.' });
+        }
         openTickets.delete(member.id);
       }
 
       try {
-        const channel = await createTicketChannel(guild, member, ticketType);
+        var channel = await createTicketChannel(guild, member, ticketType);
         openTickets.set(member.id, channel.id);
-        openTickets.set(`type_${channel.id}`, interaction.values[0]);
+        openTickets.set('type_' + channel.id, interaction.values[0]);
         await sendTicketWelcome(channel, member, ticketType);
-        await interaction.editReply({ content: `✅ Ticket aperto! Vai in ${channel}` });
+        await interaction.editReply({ content: 'Ticket aperto! Vai in ' + channel.toString() });
       } catch (err) {
-        console.error("[TICKET] Errore:", err.message);
-        await interaction.editReply({ content: "❌ Errore durante la creazione. Contatta un amministratore." });
+        console.error('[TICKET] Errore:', err.message);
+        await interaction.editReply({ content: 'Errore durante la creazione. Contatta un amministratore.' });
       }
       return;
     }
 
-    // ── Bottone chiudi ──
-    if (interaction.isButton() && interaction.customId === "ticket_close") {
-      const guild = interaction.guild;
-      const channel = interaction.channel;
-      const closedBy = interaction.user;
-      const member = interaction.member;
-      const isStaff = member.roles.cache.has(CONFIG.staffRoleId) || member.permissions.has(PermissionFlagsBits.Administrator);
-      const ownerId = [...openTickets.entries()].find(([key, val]) => val === channel.id && !key.startsWith("type_"))?.[0];
+    // Bottone chiudi ticket
+    if (interaction.isButton() && interaction.customId === 'ticket_close') {
+      var guild = interaction.guild;
+      var channel = interaction.channel;
+      var closedBy = interaction.user;
+      var member = interaction.member;
+      var isStaff = member.roles.cache.has(CONFIG.staffRoleId) || member.permissions.has(PermissionFlagsBits.Administrator);
+
+      var ownerId = null;
+      openTickets.forEach(function(val, key) {
+        if (val === channel.id && key.indexOf('type_') !== 0) {
+          ownerId = key;
+        }
+      });
 
       if (!isStaff && closedBy.id !== ownerId) {
-        return interaction.reply({ content: "❌ Solo lo staff o chi ha aperto il ticket può chiuderlo.", ephemeral: true });
+        return interaction.reply({ content: 'Solo lo staff o chi ha aperto il ticket puo chiuderlo.', ephemeral: true });
       }
 
       await interaction.deferReply();
-      const ticketType = getTicketType(openTickets.get(`type_${channel.id}`));
-      const owner = ownerId ? await client.users.fetch(ownerId).catch(() => null) : null;
 
-      await interaction.editReply({ content: `🔒 Ticket chiuso da ${closedBy}. Il canale verrà eliminato tra **5 secondi**…` });
+      var typeValue = openTickets.get('type_' + channel.id);
+      var ticketType = getTicketType(typeValue);
+      var owner = null;
+      if (ownerId) {
+        try { owner = await client.users.fetch(ownerId); } catch (e) { owner = null; }
+      }
+
+      await interaction.editReply({ content: 'Ticket chiuso da ' + closedBy.toString() + '. Il canale verra eliminato tra 5 secondi...' });
+
       await sendCloseLog(guild, channel, owner || closedBy, closedBy, ticketType);
       if (owner && owner.id !== closedBy.id) await sendCloseDM(owner, ticketType);
 
       if (ownerId) openTickets.delete(ownerId);
-      openTickets.delete(`type_${channel.id}`);
-      setTimeout(() => channel.delete().catch(() => {}), 5000);
+      openTickets.delete('type_' + channel.id);
+
+      setTimeout(function() {
+        channel.delete().catch(function() {});
+      }, 5000);
     }
   });
-
 };
