@@ -12,3 +12,9 @@ id = "kwaGnd4tiyqo267f9h8ZT"
 uri = "file://ticket-bot-v2.zip"
 type = "unspecified"
 title = "ticket.js (versione modulo)"
+
+[[outputs]]
+id = "GwKPocUL7XmBpPVDYKkbR"
+uri = "file://ticket-fix.zip"
+type = "unspecified"
+title = "ticket.js — download diretto"
