@@ -6,3 +6,9 @@ id = "U6s3moKt2Oczt7mrcetph"
 uri = "file://ticket-bot.zip"
 type = "unspecified"
 title = "ticket-bot.zip"
+
+[[outputs]]
+id = "kwaGnd4tiyqo267f9h8ZT"
+uri = "file://ticket-bot-v2.zip"
+type = "unspecified"
+title = "ticket.js (versione modulo)"
