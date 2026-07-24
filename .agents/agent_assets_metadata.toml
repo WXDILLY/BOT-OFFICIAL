@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "U6s3moKt2Oczt7mrcetph"
+uri = "file://ticket-bot.zip"
+type = "unspecified"
+title = "ticket-bot.zip"
